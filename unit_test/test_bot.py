@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-# Импортируем ваши функции и константы из файла bot.py
+# Импорт функций из файла bot.py
 from bot import (
     get_db_connection,
     save_user_issue,
@@ -45,7 +45,7 @@ class TestBotFunctions(unittest.TestCase):
         category = 'Test Category'
         issue_description = 'Test issue'
         
-        # Устанавливаем фиксированное время
+        #  фиксированное время
         fixed_time = datetime(2024, 8, 26, 16, 5, 12)
         with patch('bot.datetime') as mock_datetime:
             mock_datetime.now.return_value = fixed_time
