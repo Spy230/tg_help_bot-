@@ -70,23 +70,23 @@ Telegram Support Bot — это телеграмм бот,   для обрабо
 ## Примеры использования
 
 - **Запуск бота**
-  ![image](https://github.com/user-attachments/assets/0001e85d-bb68-47c2-95ca-c7879cde7a97)
+![image](https://github.com/user-attachments/assets/0001e85d-bb68-47c2-95ca-c7879cde7a97)
 - **Получение информации о продукте**
-  ![image](https://github.com/user-attachments/assets/f0568912-2699-4941-8d2d-b126fe11f649)
+![image](https://github.com/user-attachments/assets/f0568912-2699-4941-8d2d-b126fe11f649)
 - **обращение в техподдержку**
-  ![image](https://github.com/user-attachments/assets/976b9215-e9f7-404d-91ea-17dfc58805f9)
+![image](https://github.com/user-attachments/assets/976b9215-e9f7-404d-91ea-17dfc58805f9)
 - **Оставление заявки**
 ![image](https://github.com/user-attachments/assets/73cda6b2-4338-40ad-b233-b7bb296948a4)
 - **Описание проблемы**
-  ![image](https://github.com/user-attachments/assets/53c8808c-c888-45d3-a3f8-fa779c1262e2)
+![image](https://github.com/user-attachments/assets/53c8808c-c888-45d3-a3f8-fa779c1262e2)
 - **уведомление оператору**
-  ![image](https://github.com/user-attachments/assets/cb172c09-aaff-45e9-a471-8d9fa4ad6be9)
+![image](https://github.com/user-attachments/assets/cb172c09-aaff-45e9-a471-8d9fa4ad6be9)
 - **Ответ оператора**
-  ![image](https://github.com/user-attachments/assets/e5e15fd6-2dd7-4393-8596-234bcb540d57)
+![image](https://github.com/user-attachments/assets/e5e15fd6-2dd7-4393-8596-234bcb540d57)
 - **уведомление пользователю**
-  ![image](https://github.com/user-attachments/assets/4b4ac384-42e6-473a-b8e8-eea2b8efa3ef)
+![image](https://github.com/user-attachments/assets/4b4ac384-42e6-473a-b8e8-eea2b8efa3ef)
 - **Запись в бд**
-  ![image](https://github.com/user-attachments/assets/15e9bcf8-12aa-478b-84e1-ae53fe764e20)
+![image](https://github.com/user-attachments/assets/15e9bcf8-12aa-478b-84e1-ae53fe764e20)
 
 ## Лицензия
 
