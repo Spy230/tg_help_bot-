@@ -9,16 +9,79 @@ from datetime import datetime
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-WAITING_FOR_REPLY, WAITING_FOR_ISSUE, WAITING_FOR_CATEGORY = range(3)
+WAITING_FOR_REPLY, WAITING_FOR_ISSUE = range(2)
 
 # Подключение к базе данных
 def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="products_db"
-    )
+    try:
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="products_db"
+        )
+    except mysql.connector.Error as err:
+        logger.error(f"Ошибка подключения к базе данных: {err}")
+        raise
+
+# Функция для сохранения заявки пользователя в бд
+def save_user_issue(user_id, username, category, issue_description):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO user_issues (user_id, username, issue_text, created_at, category, status) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
+            (user_id, username, issue_description, datetime.now(), category, 'активный')
+        )
+        conn.commit()
+        logger.info("Заявка пользователя сохранена в базе данных.")
+    except mysql.connector.Error as err:
+        logger.error(f"Ошибка при сохранении заявки в базе данных: {err}")
+    finally:
+        if conn:
+            conn.close()
+
+# Функция для обновления статуса задачи
+def update_issue_status(user_id, status):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE user_issues SET status = %s WHERE user_id = %s AND status = 'активный'",
+            (status, user_id)
+        )
+        conn.commit()
+        logger.info("Статус задачи обновлён в базе данных.")
+    except mysql.connector.Error as err:
+        logger.error(f"Ошибка при обновлении статуса задачи в базе данных: {err}")
+    finally:
+        if conn:
+            conn.close()
+
+# Функция для получения информации о продукте
+def get_product_info(query):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        query = "%" + query.lower() + "%"
+        cursor.execute("SELECT * FROM products WHERE LOWER(name) LIKE LOWER(%s)", (query,))
+        result = cursor.fetchall()
+
+        if result:
+            product = result[0]
+            response = f"Название: {product['name']}\nОписание: {product['description']}\nЦена: ${product['price']}\n\n"
+            return {'response': response, 'photo_url': product['photo_url']}
+        else:
+            return "Продукт не найден. Попробуйте другой запрос."
+
+    except mysql.connector.Error as err:
+        logger.error(f"Ошибка подключения к базе данных: {err}")
+        return "Ошибка подключения к базе данных."
+
+    finally:
+        if conn:
+            conn.close()
 
 # Обработчик команды /start
 async def start(update: Update, context: CallbackContext) -> None:
@@ -43,9 +106,7 @@ async def info_product(update: Update, context: CallbackContext) -> None:
 # Обработчик команды /support
 async def support(update: Update, context: CallbackContext) -> None:
     response = "Вы можете связаться с нами по электронной почте shesterikovon@gmail.com или по телефону +7951965121.\n\nЕсли у вас есть вопросы или проблемы, оставьте заявку, и мы свяжемся с вами."
-    keyboard = [[InlineKeyboardButton("Оставить заявку", callback_data="leave_request")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(response, reply_markup=reply_markup)
+    await update.message.reply_text(response)
 
 # Обработчик команды /problems
 async def problems(update: Update, context: CallbackContext) -> None:
@@ -65,12 +126,18 @@ async def problems(update: Update, context: CallbackContext) -> None:
 async def message_handler(update: Update, context: CallbackContext) -> None:
     text = update.message.text
 
+    # Если ожидаем описание проблемы
     if context.user_data.get('waiting_for_issue'):
         category = context.user_data.get('issue_category')
+        if not category:
+            await update.message.reply_text("Ошибка: не установлена категория проблемы.")
+            return
+
         user_issue = text
         user_id = update.message.from_user.id
         username = update.message.from_user.username
 
+        # Сохранение проблемы
         save_user_issue(user_id, username, category, user_issue)
 
         operator_id = config.OPERATOR_ID
@@ -82,6 +149,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         context.user_data['waiting_for_issue'] = False
         return
 
+    # Обработка запросов на получение информации о продукте
     product_info = get_product_info(text)
     await update.message.reply_text(product_info)
 
@@ -136,7 +204,7 @@ async def handle_reply(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text("Ошибка: не удалось определить, кому отправить ответ.")
         return ConversationHandler.END
 
-# я получение заявки от пользователя
+# Обработчик для получения заявки от пользователя
 async def handle_issue(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
     username = update.message.from_user.username
@@ -144,75 +212,20 @@ async def handle_issue(update: Update, context: CallbackContext) -> int:
     category = context.user_data.get('issue_category')
 
     save_user_issue(user_id, username, category, issue_description)
-
     operator_id = config.OPERATOR_ID
     keyboard = [[InlineKeyboardButton("Ответить", callback_data=f"reply_{user_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=operator_id, text=f"Пользователь @{username} оставил заявку по категории '{category}':\n{issue_description}", reply_markup=reply_markup)
+    await context.bot.send_message(
+        chat_id=operator_id,
+        text=f"Пользователь @{username} оставил заявку по категории '{category}':\n{issue_description}",
+        reply_markup=reply_markup
+    )
 
     await update.message.reply_text("Ваша заявка отправлена. Мы свяжемся с вами как можно скорее.")
     context.user_data['waiting_for_issue'] = False
     return ConversationHandler.END
 
-# Функция для сохранения заявки пользователя в бд
-def save_user_issue(user_id, username, category, issue_description):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO user_issues (user_id, username, issue_text, created_at, category, status) "
-            "VALUES (%s, %s, %s, %s, %s, %s)",
-            (user_id, username, issue_description, datetime.now(), category, 'активный')
-        )
-        conn.commit()
-    except mysql.connector.Error as err:
-        logger.error(f"Ошибка подключения к базе данных: {err}")
-    finally:
-        if conn:
-            conn.close()
-
-#  обновление статуса задачи
-def update_issue_status(user_id, status):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE user_issues SET status = %s WHERE user_id = %s AND status = 'активный'",
-            (status, user_id)
-        )
-        conn.commit()
-    except mysql.connector.Error as err:
-        logger.error(f"Ошибка подключения к базе данных: {err}")
-    finally:
-        if conn:
-            conn.close()
-
-#  получение информации о продукте
-def get_product_info(query):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        query = "%" + query.lower() + "%"
-        cursor.execute("SELECT * FROM products WHERE LOWER(name) LIKE LOWER(%s)", (query,))
-        result = cursor.fetchall()
-
-        if result:
-            product = result[0]
-            response = f"Название: {product['name']}\nОписание: {product['description']}\nЦена: ${product['price']}\n\n"
-            return {'response': response, 'photo_url': product['photo_url']}
-        else:
-            return "Продукт не найден. Попробуйте другой запрос."
-
-    except mysql.connector.Error as err:
-        logger.error(f"Ошибка подключения к базе данных: {err}")
-        return "Ошибка подключения к базе данных."
-
-    finally:
-        if conn:
-            conn.close()
-
 def main() -> None:
-    
     app = ApplicationBuilder().token(config.TOKEN).build()
 
     # Обработчик состояний и команд
