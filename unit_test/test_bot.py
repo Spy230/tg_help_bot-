@@ -10,7 +10,7 @@ from bot import (
     get_product_info,
     start,
     question,
-    info_product,
+    info_product, 
     support,
     problems,
     message_handler,
