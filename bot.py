@@ -5,11 +5,10 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import config
 from datetime import datetime
 
-# логирования
+# Логирование
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
- 
 WAITING_FOR_REPLY, WAITING_FOR_ISSUE, WAITING_FOR_CATEGORY = range(3)
 
 # Подключение к базе данных
@@ -27,7 +26,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         'Привет! Я бот техподдержки. Используйте команды для получения информации или связи с поддержкой.'
     )
 
-# Обработчик команды  
+# Обработчик команды /question
 async def question(update: Update, context: CallbackContext) -> None:
     response = (
         "Часто задаваемые вопросы:\n"
@@ -48,7 +47,7 @@ async def support(update: Update, context: CallbackContext) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(response, reply_markup=reply_markup)
 
-# Обработчик команды /problems  
+# Обработчик команды /problems
 async def problems(update: Update, context: CallbackContext) -> None:
     response = (
         "Если у вас есть проблемы с товаром, пожалуйста, выберите категорию проблемы и опишите её.\n\n"
@@ -84,10 +83,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         return
 
     product_info = get_product_info(text)
-    if product_info:
-        await update.message.reply_photo(photo=product_info['photo_url'], caption=product_info['response'])
-    else:
-        await update.message.reply_text("Продукт не найден. Попробуйте другой запрос.")
+    await update.message.reply_text(product_info)
 
 # Обработчик нажатий на кнопки
 async def button(update: Update, context: CallbackContext) -> None:
@@ -119,7 +115,7 @@ async def button(update: Update, context: CallbackContext) -> None:
         await query.message.reply_text("Спасибо за ваш отзыв. Мы постараемся решить проблему как можно скорее.")
         return ConversationHandler.END
 
-# Обработчик для   ответа от оператора
+# Обработчик для ответа от оператора
 async def handle_reply(update: Update, context: CallbackContext) -> int:
     user_id = context.user_data.get('reply_to_user_id')
     if user_id:
@@ -140,7 +136,7 @@ async def handle_reply(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text("Ошибка: не удалось определить, кому отправить ответ.")
         return ConversationHandler.END
 
-# Обработчик для получения заявки от пользователя
+# я получение заявки от пользователя
 async def handle_issue(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
     username = update.message.from_user.username
@@ -175,7 +171,7 @@ def save_user_issue(user_id, username, category, issue_description):
         if conn:
             conn.close()
 
-#   обновления статуса задачи
+#  обновление статуса задачи
 def update_issue_status(user_id, status):
     try:
         conn = get_db_connection()
@@ -191,7 +187,7 @@ def update_issue_status(user_id, status):
         if conn:
             conn.close()
 
-#   получения информации о продукте
+#  получение информации о продукте
 def get_product_info(query):
     try:
         conn = get_db_connection()
@@ -205,11 +201,11 @@ def get_product_info(query):
             response = f"Название: {product['name']}\nОписание: {product['description']}\nЦена: ${product['price']}\n\n"
             return {'response': response, 'photo_url': product['photo_url']}
         else:
-            return None
+            return "Продукт не найден. Попробуйте другой запрос."
 
     except mysql.connector.Error as err:
         logger.error(f"Ошибка подключения к базе данных: {err}")
-        return None
+        return "Ошибка подключения к базе данных."
 
     finally:
         if conn:
@@ -219,7 +215,7 @@ def main() -> None:
     
     app = ApplicationBuilder().token(config.TOKEN).build()
 
-    # обработчик состояний и команд
+    # Обработчик состояний и команд
     conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(button)],
         states={
@@ -233,7 +229,7 @@ def main() -> None:
     app.add_handler(CommandHandler("question", question))
     app.add_handler(CommandHandler("info_product", info_product))
     app.add_handler(CommandHandler("support", support))
-    app.add_handler(CommandHandler("problems", problems))  # Обработчик для новой команды /problems
+    app.add_handler(CommandHandler("problems", problems))
     app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
